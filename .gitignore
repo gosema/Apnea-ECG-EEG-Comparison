@@ -1,3 +1,21 @@
+# Data files
 data/
-.env
 mesa/
+
+# Environment variables / secrets
+.env
+
+# macOS metadata
+.DS_Store
+**/.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+
+# Virtual environments
+.venv/
+venv/
+env/
+pds/
