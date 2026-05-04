@@ -1,6 +1,6 @@
 import mne
 
-edf_path = "f:/ProyectoPDS/data/data/mesa/polysomnography/edfs/mesa-sleep-0006.edf"
+edf_path = "../../data/data/mesa/polysomnography/edfs/mesa-sleep-0006.edf"
 
 #Leer el edf
 edf_prueba = mne.io.read_raw_edf(edf_path, preload=True, verbose=False)

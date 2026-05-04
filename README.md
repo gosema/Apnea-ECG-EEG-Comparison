@@ -9,35 +9,36 @@ The project focuses on loading physiological sleep recordings, preprocessing ECG
 ```text
 Apnea-ECG-EEG-Comparison/
 ├── data/
-│   └── mesa/                  # Local MESA dataset files, not tracked by Git
+│   └── mesa/                       # Local MESA dataset files, not tracked by Git
 │
-├── notebooks/                 # Exploratory analysis and experiments
+├── notebooks/                      # Exploratory analysis and experiments
+│   └── extraction_example.ipynb    # Examples of how the data is extracted from the edf files and how it's preprocessed.
 │
-├── src/                       # Reusable project code
+├── src/                            # Reusable project code
 │   ├── __init__.py
-│   ├── config.py              # Paths and general configuration
-│   ├── data_loader.py         # Load EDF files, annotations, and metadata
-│   ├── preprocessing.py       # Filter, normalize, and prepare EEG/ECG signals
-│   ├── features.py            # Extract signal features
-│   ├── models.py              # Define and train classifiers
-│   └── evaluation.py          # Metrics and model comparison
+│   ├── config.py                   # Paths and general configuration
+│   ├── data_loader.py              # Load EDF files, annotations, and metadata
+│   ├── preprocessing.py            # Filter, normalize, and prepare EEG/ECG signals
+│   ├── features.py                 # Extract signal features
+│   ├── models.py                   # Define and train classifiers
+│   └── evaluation.py               # Metrics and model comparison
 │
-├── scripts/                   # Executable pipeline scripts
-│   ├── extract_features.py    # Generate feature tables from signals
-│   ├── train_models.py        # Train ECG and EEG models
-│   ├── evaluate_models.py     # Evaluate and compare model results
-│   └── info_edf.py            # Extract from an EDF file the channels and frequency.
+├── scripts/                        # Executable pipeline scripts
+│   ├── extract_features.py         # Generate feature tables from signals
+│   ├── train_models.py             # Train ECG and EEG models
+│   ├── evaluate_models.py          # Evaluate and compare model results
+│   └── info_edf.py                 # Extract from an EDF file the channels and frequency.
 │
-├── outputs/                   # Generated outputs, not tracked by Git
+├── outputs/                        # Generated outputs, not tracked by Git
 │   ├── features/
 │   ├── models/
 │   └── figures/
 │
-├── reports/                   # Report-related files and final figures
+├── reports/                        # Report-related files and final figures
 │   └── figures/
 │
 ├── requirements.txt
-├── canales_frecuencia.txt     # Channels and frequency used in the EDF
+├── channels_frequency.txt          # Channels and frequency used in the EDF
 ├── README.md
 ├── LICENSE
 └── .gitignore
