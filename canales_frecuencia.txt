@@ -1,0 +1,9 @@
+Todos los canales: 
+['EKG', 'EOG-L', 'EOG-R', 'EMG', 'EEG1', 'EEG2', 'EEG3', 'Pres', 'Flow', 'Snore', 'Thor', 'Abdo', 'Leg', 'Therm', 'Pos', 'EKG_Off', 'EOG-L_Off', 'EOG-R_Off', 'EMG_Off', 'EEG1_Off', 'EEG2_Off', 'EEG3_Off', 'Pleth', 'OxStatus', 'SpO2', 'HR', 'DHR']
+
+Frecuencia en hz: 
+256.0
+
+Canales:
+ECG: ['EKG', 'EKG_Off']
+EEG: ['EEG1', 'EEG2', 'EEG3', 'EEG1_Off', 'EEG2_Off', 'EEG3_Off']
