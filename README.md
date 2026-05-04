@@ -25,7 +25,8 @@ Apnea-ECG-EEG-Comparison/
 ├── scripts/                   # Executable pipeline scripts
 │   ├── extract_features.py    # Generate feature tables from signals
 │   ├── train_models.py        # Train ECG and EEG models
-│   └── evaluate_models.py     # Evaluate and compare model results
+│   ├── evaluate_models.py     # Evaluate and compare model results
+│   └── info_edf.py            # Extract from an EDF file the channels and frequency.
 │
 ├── outputs/                   # Generated outputs, not tracked by Git
 │   ├── features/
@@ -36,6 +37,7 @@ Apnea-ECG-EEG-Comparison/
 │   └── figures/
 │
 ├── requirements.txt
+├── canales_frecuencia.txt     # Channels and frequency used in the EDF
 ├── README.md
 ├── LICENSE
 └── .gitignore
