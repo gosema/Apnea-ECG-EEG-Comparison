@@ -67,4 +67,64 @@ class DataLoader:
         print("  - ¡Procesamiento inicial completado con éxito!")
         return raw
 
-    
+    def load_annotations(self, raw, xml_path):
+        """
+        Lee un archivo XML (formato NSRR o Profusion) y superpone las etiquetas
+        sobre el objeto de señales en crudo (raw) de MNE.
+        """
+        print(f"  - Cargando anotaciones desde: {xml_path}")
+        
+        try:
+            # Parsear el archivo XML
+            tree = ET.parse(xml_path)
+            root = tree.getroot()
+        except Exception as e:
+            print(f"    [ERROR] No se pudo leer el archivo XML: {e}")
+            return raw
+            
+        onsets = []
+        durations = []
+        descriptions = []
+        
+        # Buscar todos los eventos etiquetados en el archivo
+        # En el formato NSRR, la etiqueta suele ser <ScoredEvent>
+        for event in root.iter('ScoredEvent'):
+            # Diferentes bases de datos usan 'Name' o 'EventConcept' para el nombre
+            name_node = event.find('Name')
+            if name_node is None:
+                name_node = event.find('EventConcept')
+                
+            start_node = event.find('Start')
+            duration_node = event.find('Duration')
+            
+            # Si el evento tiene nombre, inicio y duración, lo extraemos
+            if name_node is not None and start_node is not None and duration_node is not None:
+                desc = name_node.text
+                try:
+                    start = float(start_node.text)
+                    duration = float(duration_node.text)
+                    
+                    onsets.append(start)
+                    durations.append(duration)
+                    descriptions.append(desc)
+                except ValueError:
+                    # Ignorar si hay algún texto corrupto que no sea un número
+                    continue
+                    
+        if len(onsets) > 0:
+            # Crear el objeto de anotaciones de MNE
+            # Se usa el orig_time del archivo EDF para que las horas coincidan exactamente
+            annotations = mne.Annotations(
+                onset=onsets, 
+                duration=durations, 
+                description=descriptions,
+                orig_time=raw.info['meas_date']
+            )
+            
+            # Acoplar las etiquetas a la señal fisiológica
+            raw.set_annotations(annotations)
+            print(f"  - [ÉXITO] Se han acoplado {len(onsets)} etiquetas clínicas a la señal.")
+        else:
+            print("  - [ADVERTENCIA] No se encontraron eventos legibles en el XML.")
+            
+        return raw
