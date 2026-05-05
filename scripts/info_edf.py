@@ -1,21 +1,25 @@
 import mne
+import sys
+import os
 
-edf_path = "../../data/data/mesa/polysomnography/edfs/mesa-sleep-0006.edf"
+# 1. Configurar el path para que Python encuentre la carpeta 'src'
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-#Leer el edf
-edf_prueba = mne.io.read_raw_edf(edf_path, preload=True, verbose=False)
-print(edf_prueba.ch_names)
-print(edf_prueba.info["sfreq"])
+# Importamos nuestra clase
+from src.data_loader import DataLoader
 
-# Buscar canales por nombre
-ecg_canal = [c for c in edf_prueba.ch_names if "ECG" in c.upper() or "EKG" in c.upper()]
-eeg_canal = [c for c in edf_prueba.ch_names if "EEG" in c.upper()]
+def main():
+    directorio_script = os.path.dirname(os.path.abspath(__file__))
+    
+    # --- CONFIGURACIÓN DEL PACIENTE A PRUEBA ---
+    paciente_id = "0006"  # Cambia esto a "0033" o "0010" para probar otros
+    
+    # Construir las rutas dinámicamente según el paciente elegido
+    edf_path = os.path.join(directorio_script, "..", "data", "mesa", "polysomnography", "edfs", f"mesa-sleep-{paciente_id}.edf")
+    xml_path = os.path.join(directorio_script, "..", "data", "mesa", "polysomnography", "annotations-events-nsrr", f"mesa-sleep-{paciente_id}-nsrr.xml")
+    
+    edf_path = os.path.normpath(edf_path)
+    xml_path = os.path.normpath(xml_path)
+    # ------------------------------------------
 
-print("ECG:", ecg_canal)
-print("EEG:", eeg_canal)
-
-# Extraer señal de un canal
-if ecg_canal:
-    ecg_senial = edf_prueba.get_data(picks=[ecg_canal[0]])[0]
-if eeg_canal:
-    eeg_senial = edf_prueba.get_data(picks=[eeg_canal[0]])[0]
+    print(f"--- Explorando paciente: {paciente_id} ---")
