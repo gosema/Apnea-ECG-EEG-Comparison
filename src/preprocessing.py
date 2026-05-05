@@ -12,4 +12,8 @@ class SignalPreprocessor:
         # Implementación del filtro Notch para la interferencia de 60 Hz propia de la red electrica en EEUU
         raw.notch_filter(freqs=self.notch_freq, picks='all', verbose=False)
         
+        # Implementación del filtro Pasa-banda mantiene solo la información relevante (0.5 - 30 Hz), quedando solo la actividad cerebral y cardiaca importante
+        # Utilizamos un filtro FIR  que es el estándar en PDS y proyectos relacionados
+        raw.filter(l_freq=self.l_freq, h_freq=self.h_freq, 
+                   picks='all', method='fir', phase='zero', verbose=False)
         return raw
