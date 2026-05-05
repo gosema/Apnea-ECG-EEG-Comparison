@@ -23,3 +23,28 @@ def main():
     # ------------------------------------------
 
     print(f"--- Explorando paciente: {paciente_id} ---")
+
+    # 2. Leer SOLO la cabecera del EDF (preload=False)
+    try:
+        edf_info = mne.io.read_raw_edf(edf_path, preload=False, verbose=False)
+    except FileNotFoundError:
+        print(f"[ERROR] No se encuentra el archivo EDF en: {edf_path}")
+        return
+
+    print("\n[INFO] Metadatos Originales:")
+    print(f"  - Canales totales: {len(edf_info.ch_names)}")
+    print(f"  - Frecuencia de muestreo: {edf_info.info['sfreq']} Hz")
+
+    # 3. Buscar canales (Ignorando los que contengan "OFF" o "STATUS")
+    ecg_canales = [c for c in edf_info.ch_names if ("ECG" in c.upper() or "EKG" in c.upper()) and "OFF" not in c.upper()]
+    eeg_canales = [c for c in edf_info.ch_names if "EEG" in c.upper() and "OFF" not in c.upper()]
+
+    print(f"\n[INFO] Búsqueda de señales fisiológicas puras:")
+    print(f"  - ECG encontrados: {ecg_canales}")
+    print(f"  - EEG encontrados: {eeg_canales}")
+
+    if not ecg_canales and not eeg_canales:
+        print("\n[ADVERTENCIA] No se encontraron canales relevantes. Abortando.")
+        return
+
+   
