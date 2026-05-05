@@ -1,103 +1,79 @@
 import mne
 import numpy as np
-import warnings
 import xml.etree.ElementTree as ET
 
-# Suprimir warnings molestos de MNE al cargar EDFs
-warnings.filterwarnings("ignore", category=RuntimeWarning)
-
 class DataLoader:
-    def __init__(self, target_fs=100.0):
-        """
-        Inicializa el cargador de datos.
-        
-        :param target_fs: Frecuencia de muestreo objetivo (en Hz) para homogeneizar 
-                          todas las señales. 100 Hz o 128 Hz suele ser suficiente 
-                          para la mayoría de características espectrales del sueño.
-        """
+    # A target sampling rate is defined since the data belongs to different hospitals that may record at different speeds.
+    def __init__(self, target_fs=200.0):
         self.target_fs = target_fs
-
+    
+    # The raw signal of a sample is taken and cleaning steps are applied
+    # TODO: LOOP FOR ALL PATIENT SAMPLES
     def load_and_standardize(self, edf_path, eeg_channels, ecg_channels):
-        """
-        Carga un archivo EDF y aplica la estandarización completa.
-        """
-        print(f"Procesando: {edf_path}...")
+        print(f"Processing: {edf_path}...")
         
-        # 1. Cargar el registro crudo (preload=True es necesario para modificar los datos)
+        # Load the EDF file with MNE
         raw = mne.io.read_raw_edf(edf_path, preload=True, verbose=False)
         
-        # Filtrar solo los canales que nos interesan (EEG y ECG)
+        # Filter only the channels of interest (EEG and ECG)
         channels_to_keep = eeg_channels + ecg_channels
         
-        # Verificar qué canales existen realmente en el EDF para evitar errores
+        # Verify which channels actually exist in the EDF to avoid errors
         existing_channels = [ch for ch in channels_to_keep if ch in raw.ch_names]
         raw.pick(existing_channels)
 
-        # 2. Armonizar la frecuencia de muestreo (Resampling)
+        # The frequency is standardized to the target frequency; if it does not match, the signal is resampled.
         if raw.info['sfreq'] != self.target_fs:
-            print(f"  - Remuestreando de {raw.info['sfreq']} Hz a {self.target_fs} Hz")
             raw.resample(self.target_fs)
 
-        # 3. Establecer referencia común para el EEG
-        # Usamos CAR (Common Average Reference) que calcula la media de todos los 
-        # electrodos EEG y la resta, mitigando las diferencias físicas de los montajes.
+        # We use CAR (Common Average Reference), which calculates the mean of all 
+        # EEG electrodes and subtracts it, mitigating the physical differences in the montages.
         eeg_existentes = [ch for ch in eeg_channels if ch in raw.ch_names]
         if eeg_existentes:
-            # Le decimos a MNE cuáles son los canales EEG
+            # We tell MNE which channels are the EEG channels
             raw.set_channel_types({ch: 'eeg' for ch in eeg_existentes})
-            print("  - Aplicando referencia común promedio (CAR) al EEG")
             raw.set_eeg_reference('average', projection=False, verbose=False)
 
-        # 4. Normalizar Amplitudes (Z-score normalization)
-        # Esto asegura que pacientes con señales inherentemente más fuertes/débiles 
-        # se evalúen en la misma escala (media 0, desviación estándar 1).
-        print("  - Normalizando amplitudes (Z-score)")
-        data = raw.get_data() # Devuelve un array de numpy (canales x muestras)
-        
-        # Normalizamos canal por canal
+        # Normalize Amplitudes (using Z-score normalization (mean 0, standard deviation 1)).
+        data = raw.get_data() # Returns a NumPy array (channels x samples)
+        # Normalize channel by channel
         for i in range(data.shape[0]):
             media = np.mean(data[i, :])
             std = np.std(data[i, :])
-            if std > 0: # Prevenir división por cero si un canal está "plano"
+            if std > 0: # Prevent division by zero if a channel is "flat"
                 data[i, :] = (data[i, :] - media) / std
                 
-        # Reasignamos los datos normalizados al objeto raw
+        # Reassign the normalized data to the raw object
         raw._data = data
 
-        print("  - ¡Procesamiento inicial completado con éxito!")
         return raw
 
+    # Reads the XML file in NSRR format from polysomnography/annotations-events-nsrr and overlays it on the clean temporal waveform
     def load_annotations(self, raw, xml_path):
-        """
-        Lee un archivo XML (formato NSRR o Profusion) y superpone las etiquetas
-        sobre el objeto de señales en crudo (raw) de MNE.
-        """
-        print(f"  - Cargando anotaciones desde: {xml_path}")
-        
         try:
-            # Parsear el archivo XML
+            # Parse the XML file
             tree = ET.parse(xml_path)
             root = tree.getroot()
         except Exception as e:
-            print(f"    [ERROR] No se pudo leer el archivo XML: {e}")
+            print(f"    [ERROR] Could not read the XML file: {e}")
             return raw
             
         onsets = []
         durations = []
         descriptions = []
         
-        # Buscar todos los eventos etiquetados en el archivo
-        # En el formato NSRR, la etiqueta suele ser <ScoredEvent>
+        # Search for all labeled events in the file
+        # In the NSRR format, the tag is usually <ScoredEvent>
         for event in root.iter('ScoredEvent'):
-            # Diferentes bases de datos usan 'Name' o 'EventConcept' para el nombre
-            name_node = event.find('Name')
+            # Different databases use 'Name' or 'EventConcept' for the name
+            name_node = event.find('EventConcept')
             if name_node is None:
                 name_node = event.find('EventConcept')
                 
             start_node = event.find('Start')
             duration_node = event.find('Duration')
             
-            # Si el evento tiene nombre, inicio y duración, lo extraemos
+            # If the event has a name, onset, and duration, we extract it
             if name_node is not None and start_node is not None and duration_node is not None:
                 desc = name_node.text
                 try:
@@ -108,12 +84,12 @@ class DataLoader:
                     durations.append(duration)
                     descriptions.append(desc)
                 except ValueError:
-                    # Ignorar si hay algún texto corrupto que no sea un número
+                    # Ignore any corrupted text that is not a number
                     continue
                     
         if len(onsets) > 0:
-            # Crear el objeto de anotaciones de MNE
-            # Se usa el orig_time del archivo EDF para que las horas coincidan exactamente
+            # Create the MNE annotations object
+            # The orig_time from the EDF file is used so the times match exactly
             annotations = mne.Annotations(
                 onset=onsets, 
                 duration=durations, 
@@ -121,10 +97,7 @@ class DataLoader:
                 orig_time=raw.info['meas_date']
             )
             
-            # Acoplar las etiquetas a la señal fisiológica
+            # Attach the labels to the physiological signal
             raw.set_annotations(annotations)
-            print(f"  - [ÉXITO] Se han acoplado {len(onsets)} etiquetas clínicas a la señal.")
-        else:
-            print("  - [ADVERTENCIA] No se encontraron eventos legibles en el XML.")
-            
+                        
         return raw
