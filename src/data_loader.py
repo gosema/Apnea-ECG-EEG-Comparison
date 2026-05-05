@@ -48,3 +48,23 @@ class DataLoader:
             print("  - Aplicando referencia común promedio (CAR) al EEG")
             raw.set_eeg_reference('average', projection=False, verbose=False)
 
+        # 4. Normalizar Amplitudes (Z-score normalization)
+        # Esto asegura que pacientes con señales inherentemente más fuertes/débiles 
+        # se evalúen en la misma escala (media 0, desviación estándar 1).
+        print("  - Normalizando amplitudes (Z-score)")
+        data = raw.get_data() # Devuelve un array de numpy (canales x muestras)
+        
+        # Normalizamos canal por canal
+        for i in range(data.shape[0]):
+            media = np.mean(data[i, :])
+            std = np.std(data[i, :])
+            if std > 0: # Prevenir división por cero si un canal está "plano"
+                data[i, :] = (data[i, :] - media) / std
+                
+        # Reasignamos los datos normalizados al objeto raw
+        raw._data = data
+
+        print("  - ¡Procesamiento inicial completado con éxito!")
+        return raw
+
+    
