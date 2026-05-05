@@ -47,4 +47,44 @@ def main():
         print("\n[ADVERTENCIA] No se encontraron canales relevantes. Abortando.")
         return
 
-   
+    # 4. Procesar los datos con DataLoader
+    print("\n--- Iniciando estandarización con DataLoader ---")
+    loader = DataLoader(target_fs=100.0)
+
+    try:
+        # A) Cargar y limpiar las señales
+        raw_procesado = loader.load_and_standardize(
+            edf_path=edf_path, 
+            eeg_channels=eeg_canales, 
+            ecg_channels=ecg_canales
+        )
+        
+        # B) Acoplar las etiquetas clínicas (Apneas)
+        raw_procesado = loader.load_annotations(raw_procesado, xml_path)
+        
+        # 5. Mostrar todos los resultados
+        print("\n--- Resultados del Procesamiento Final ---")
+        print(f"[ÉXITO] Frecuencia final alineada a: {raw_procesado.info['sfreq']} Hz")
+        print(f"[ÉXITO] Canales conservados: {raw_procesado.ch_names}")
+        
+        anotaciones_cargadas = raw_procesado.annotations
+        if len(anotaciones_cargadas) > 0:
+            tipos_eventos = set(anotaciones_cargadas.description)
+            print(f"[ÉXITO] Se cargaron {len(anotaciones_cargadas)} eventos. Tipos detectados:")
+            for evento in tipos_eventos:
+                print(f"   * {evento}")
+        
+        # C) Extraer matriz para Numpy
+        matriz_datos = raw_procesado.get_data()
+        print(f"\n[ÉXITO] Matriz de datos extraída con forma (canales, muestras): {matriz_datos.shape}")
+
+        if ecg_canales:
+            idx_ecg = raw_procesado.ch_names.index(ecg_canales[0])
+            ecg_senial = matriz_datos[idx_ecg]
+            print(f"  -> Señal {ecg_canales[0]} lista. Muestra: {ecg_senial[:5]}")
+
+    except Exception as e:
+        print(f"\n[ERROR] Fallo durante la estandarización: {e}")
+
+if __name__ == "__main__":
+    main()
