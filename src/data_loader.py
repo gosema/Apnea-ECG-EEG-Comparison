@@ -1,0 +1,103 @@
+import mne
+import numpy as np
+import xml.etree.ElementTree as ET
+
+class DataLoader:
+    # A target sampling rate is defined since the data belongs to different hospitals that may record at different speeds.
+    def __init__(self, target_fs=200.0):
+        self.target_fs = target_fs
+    
+    # The raw signal of a sample is taken and cleaning steps are applied
+    # TODO: LOOP FOR ALL PATIENT SAMPLES
+    def load_and_standardize(self, edf_path, eeg_channels, ecg_channels):
+        print(f"Processing: {edf_path}...")
+        
+        # Load the EDF file with MNE
+        raw = mne.io.read_raw_edf(edf_path, preload=True, verbose=False)
+        
+        # Filter only the channels of interest (EEG and ECG)
+        channels_to_keep = eeg_channels + ecg_channels
+        
+        # Verify which channels actually exist in the EDF to avoid errors
+        existing_channels = [ch for ch in channels_to_keep if ch in raw.ch_names]
+        raw.pick(existing_channels)
+
+        # The frequency is standardized to the target frequency; if it does not match, the signal is resampled.
+        if raw.info['sfreq'] != self.target_fs:
+            raw.resample(self.target_fs)
+
+        # We use CAR (Common Average Reference), which calculates the mean of all 
+        # EEG electrodes and subtracts it, mitigating the physical differences in the montages.
+        eeg_existentes = [ch for ch in eeg_channels if ch in raw.ch_names]
+        if eeg_existentes:
+            # We tell MNE which channels are the EEG channels
+            raw.set_channel_types({ch: 'eeg' for ch in eeg_existentes})
+            raw.set_eeg_reference('average', projection=False, verbose=False)
+
+        # Normalize Amplitudes (using Z-score normalization (mean 0, standard deviation 1)).
+        data = raw.get_data() # Returns a NumPy array (channels x samples)
+        # Normalize channel by channel
+        for i in range(data.shape[0]):
+            media = np.mean(data[i, :])
+            std = np.std(data[i, :])
+            if std > 0: # Prevent division by zero if a channel is "flat"
+                data[i, :] = (data[i, :] - media) / std
+                
+        # Reassign the normalized data to the raw object
+        raw._data = data
+
+        return raw
+
+    # Reads the XML file in NSRR format from polysomnography/annotations-events-nsrr and overlays it on the clean temporal waveform
+    def load_annotations(self, raw, xml_path):
+        try:
+            # Parse the XML file
+            tree = ET.parse(xml_path)
+            root = tree.getroot()
+        except Exception as e:
+            print(f"    [ERROR] Could not read the XML file: {e}")
+            return raw
+            
+        onsets = []
+        durations = []
+        descriptions = []
+        
+        # Search for all labeled events in the file
+        # In the NSRR format, the tag is usually <ScoredEvent>
+        for event in root.iter('ScoredEvent'):
+            # Different databases use 'Name' or 'EventConcept' for the name
+            name_node = event.find('EventConcept')
+            if name_node is None:
+                name_node = event.find('EventConcept')
+                
+            start_node = event.find('Start')
+            duration_node = event.find('Duration')
+            
+            # If the event has a name, onset, and duration, we extract it
+            if name_node is not None and start_node is not None and duration_node is not None:
+                desc = name_node.text
+                try:
+                    start = float(start_node.text)
+                    duration = float(duration_node.text)
+                    
+                    onsets.append(start)
+                    durations.append(duration)
+                    descriptions.append(desc)
+                except ValueError:
+                    # Ignore any corrupted text that is not a number
+                    continue
+                    
+        if len(onsets) > 0:
+            # Create the MNE annotations object
+            # The orig_time from the EDF file is used so the times match exactly
+            annotations = mne.Annotations(
+                onset=onsets, 
+                duration=durations, 
+                description=descriptions,
+                orig_time=raw.info['meas_date']
+            )
+            
+            # Attach the labels to the physiological signal
+            raw.set_annotations(annotations)
+                        
+        return raw
