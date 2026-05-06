@@ -40,7 +40,7 @@ def main():
 
     # Process the data
     loader = DataLoader(target_fs=200.0)
-    preprocessor = SignalPreprocessor(l_freq=0.5, h_freq=30.0, notch_freq=60.0)
+    preprocessor = SignalPreprocessor(l_freq=0.5, h_freq=30.0)
 
     try:
         # Load and clean the signals
@@ -52,7 +52,7 @@ def main():
         
         # Attach the physician's notes from the XML file
         raw_procesado = loader.load_annotations(raw_procesado, xml_path)
-        # Apply Notch Filter (50Hz) and Band-pass (0.5-30Hz)
+        # Apply Band-pass (0.5-30Hz)
         raw_limpio = preprocessor.apply_filters(raw_procesado)
 
         # Extract matrix for NumPy
