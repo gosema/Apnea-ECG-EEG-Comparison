@@ -3,20 +3,24 @@ from scipy.fft import rfft, rfftfreq
 from scipy.interpolate import interp1d
 from scipy.signal import find_peaks
 
-def process_signal_fourier(signal, fs, type="EEG"):
+def process_signal_fourier(filteredSignal, fs, type="EEG"):
+    # Extract sample frequency (fs) from the MNE Raw object
+    fs = filteredSignal.info['sfreq']
     if type == "ECG":
+        ecgSignal = filteredSignal.get_data(picks='ecg')[0]
         # Detect R-peaks (index of each heartbeat)
         # threshold -min vertical distance between neighbouring samples- is set to half of the standard deviation of the signal to avoid false positives
         # distance -min horizontal distance (in samples) between neighbouring peaks- is set to 0.6 seconds (fs*0.6) to avoid detecting multiple peaks within the same heartbeat
-        r_peaks, _ = find_peaks(signal, threshold=np.std(signal) * 0.5, distance=fs*0.6)  # Assuming a minimum heart rate of 60 bpm
+        r_peaks, _ = find_peaks(ecgSignal, threshold=np.std(ecgSignal) * 0.5, distance=fs*0.6)  # Assuming a minimum heart rate of 60 bpm
         return process_ecg(r_peaks, fs)
     
-    return process_eeg(signal, fs)
+    eegSignal = filteredSignal.get_data(picks='eeg')[0]
+    return process_eeg(eegSignal, fs)
 
-def process_eeg(signal, fs):
-    N = len(signal)
+def process_eeg(filteredSignal, fs):
+    N = len(filteredSignal)
     # Aplly a Hanning window to minimize spectral leakage (Gibbs phenomenon)
-    windowed = signal * np.hanning(N)
+    windowed = filteredSignal * np.hanning(N)
     
     # rfft returns only the non-redundant positive frequencies
     # Result length: (N/2) + 1
