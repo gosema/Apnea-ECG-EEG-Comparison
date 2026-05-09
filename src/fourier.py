@@ -32,6 +32,8 @@ def process_eeg(filteredSignal, fs):
     # because we dropped the negative frequencies.
     psd = (np.abs(yf)**2) / (fs * N)
     psd[1:-1] *= 2 
+    # Aooly logarithmic scaling to enhance visibility of smaller peaks
+    psd = 10 * np.log10(psd + 1e-10)  # Add a small constant to avoid log(0)
     
     return xf, psd
 
@@ -58,6 +60,8 @@ def process_ecg(r_peaks, fs):
     # Power Spectral Density of HRV
     psd = (np.abs(yf)**2) / (fs * N)
     psd[1:-1] *= 2  # Conservation of energy for non-DC and non-Nyquist frequencies
+    # Logarithmic scaling for better visualization
+    psd = 10 * np.log10(psd + 1e-10)
 
     # Feature Extraction for Apnea
     # Bands: LF (0.04-0.15 Hz); HF (0.15-0.4 Hz); VLF (0.003-0.04 Hz)
