@@ -9,9 +9,11 @@ The project focuses on loading physiological sleep recordings, preprocessing ECG
 ```text
 Apnea-ECG-EEG-Comparison/
 ├── data/
+│   ├── processed/                  # Processed data located at: https://drive.google.com/file/d/1qTkmaeSae_6qE2uwEEAG9s6Sec03TbW-/view?usp=sharing
 │   └── mesa/                       # Local MESA dataset files, not tracked by Git
 │
 ├── notebooks/                      # Exploratory analysis and experiments
+│   ├── pickle_file_structure_extractio.ipynb    # Example about how data is stored in pickle files.
 │   └── extraction_example.ipynb    # Examples of how the data is extracted from the edf files and how it's preprocessed.
 │
 ├── src/                            # Reusable project code
@@ -21,6 +23,7 @@ Apnea-ECG-EEG-Comparison/
 │   ├── preprocessing.py            # Filter, normalize, and prepare EEG/ECG signals
 │   ├── features.py                 # Extract signal features
 │   ├── models.py                   # Define and train classifiers
+│   ├── data_processor.py           # Loads data, applys filters, and obtains the fourier transform of the signals which is then stored into a file.
 │   └── evaluation.py               # Metrics and model comparison
 │
 ├── scripts/                        # Executable pipeline scripts
