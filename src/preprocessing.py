@@ -22,8 +22,8 @@ class SignalPreprocessor:
         
         #Butterworth filter and zero-phase filtering (filtfilt) needed to produce the filtered signal
         b, a = sgn.butter(4, [low, high], btype='band')
-        data_filtrada = sgn.filtfilt(b, a, data, axis=-1)
+        data_filtered = sgn.filtfilt(b, a, data, axis=-1)
         # Reassign the filtered data back to the MNE object format
-        raw._data = data_filtrada
+        raw._data = data_filtered
 
         return raw

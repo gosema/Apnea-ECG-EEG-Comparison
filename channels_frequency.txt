@@ -7,3 +7,5 @@ Frecuencia en hz:
 Canales:
 ECG: ['EKG', 'EKG_Off']
 EEG: ['EEG1', 'EEG2', 'EEG3', 'EEG1_Off', 'EEG2_Off', 'EEG3_Off']
+
+IMPORTANTE: EEG1 y EEG2 no son el canal de entrada ExG el más estandar y priorizado por MESA es EEG3

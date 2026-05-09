@@ -7,14 +7,14 @@ def process_signal_fourier(filteredSignal, fs, type="EEG"):
     # Extract sample frequency (fs) from the MNE Raw object
     fs = filteredSignal.info['sfreq']
     if type == "ECG":
-        ecgSignal = filteredSignal.get_data(picks='ecg')[0]
+        ecgSignal = filteredSignal.get_data(picks='EKG')[0]
         # Detect R-peaks (index of each heartbeat)
         # threshold -min vertical distance between neighbouring samples- is set to half of the standard deviation of the signal to avoid false positives
         # distance -min horizontal distance (in samples) between neighbouring peaks- is set to 0.6 seconds (fs*0.6) to avoid detecting multiple peaks within the same heartbeat
         r_peaks, _ = find_peaks(ecgSignal, threshold=np.std(ecgSignal) * 0.5, distance=fs*0.6)  # Assuming a minimum heart rate of 60 bpm
         return process_ecg(r_peaks, fs)
     
-    eegSignal = filteredSignal.get_data(picks='eeg')[0]
+    eegSignal = filteredSignal.get_data(picks='EEG3')[0]
     return process_eeg(eegSignal, fs)
 
 def process_eeg(filteredSignal, fs):
@@ -39,11 +39,34 @@ def process_eeg(filteredSignal, fs):
 
 def process_ecg(r_peaks, fs):
     # Calculate RR intervals in seconds
+    
+    # Verify theres enough R-peaks
+    if r_peaks is None or len(r_peaks) < 2:
+        return {
+            "lf_power": np.nan,
+            "hf_power": np.nan,
+            "lf_hf_ratio": np.nan,
+            "total_power": np.nan,
+            "status": "insufficient_r_peaks"
+        }
+
     rr_intervals = np.diff(r_peaks) / fs
+
+    # Clean non valid RR intervals (e.g., due to missed or extra peaks) by removing non-finite values 
+    rr_intervals = rr_intervals[np.isfinite(rr_intervals)]
+    if rr_intervals.size < 2:
+        return {
+            "lf_power": np.nan,
+            "hf_power": np.nan,
+            "lf_hf_ratio": np.nan,
+            "total_power": np.nan,
+            "status": "insufficient_rr_intervals"
+        }
     
     # Interpolate to get a uniformly sampled signal
     t = np.cumsum(rr_intervals)
-    interp_func = interp1d(t, rr_intervals, kind='cubic')
+    kind = "cubic" if rr_intervals.size >= 4 else "linear"
+    interp_func = interp1d(t, rr_intervals, kind=kind, bounds_error=False, fill_value="extrapolate")
     
     # Resample at 4 Hz (typical for HRV analysis)
     resampled_t = np.arange(t[0], t[-1], 1/fs)

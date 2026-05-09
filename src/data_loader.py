@@ -4,7 +4,7 @@ import xml.etree.ElementTree as ET
 
 class DataLoader:
     # A target sampling rate is defined since the data belongs to different hospitals that may record at different speeds.
-    def __init__(self, target_fs=200.0):
+    def __init__(self, target_fs=256.0):
         self.target_fs = target_fs
     
     # The raw signal of a sample is taken and cleaning steps are applied
@@ -12,8 +12,11 @@ class DataLoader:
     def load_and_standardize(self, edf_path, eeg_channels, ecg_channels):
         print(f"Processing: {edf_path}...")
         
+        # Channels to keep helps reduce memory usage
+        channels_to_keep = eeg_channels + ecg_channels
+        
         # Load the EDF file with MNE
-        raw = mne.io.read_raw_edf(edf_path, preload=True, verbose=False)
+        raw = mne.io.read_raw_edf(edf_path, include=channels_to_keep, preload=True, verbose=False)
         
         # Filter only the channels of interest (EEG and ECG)
         channels_to_keep = eeg_channels + ecg_channels
@@ -23,7 +26,7 @@ class DataLoader:
         raw.pick(existing_channels)
 
         # The frequency is standardized to the target frequency; if it does not match, the signal is resampled.
-        if raw.info['sfreq'] != self.target_fs:
+        if abs(raw.info["sfreq"] - self.target_fs) > 1e-6:
             raw.resample(self.target_fs)
 
         # We use CAR (Common Average Reference), which calculates the mean of all 
@@ -101,3 +104,12 @@ class DataLoader:
             raw.set_annotations(annotations)
                         
         return raw
+    
+    def split_raw(self, raw, eeg_channels, ecg_channels):
+        eeg_exist = [ch for ch in eeg_channels if ch in raw.ch_names]
+        ecg_exist = [ch for ch in ecg_channels if ch in raw.ch_names]
+
+        raw_eeg = raw.copy().pick_channels(eeg_exist)
+        raw_ecg = raw.copy().pick_channels(ecg_exist)
+
+        return raw_eeg, raw_ecg
