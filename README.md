@@ -28,8 +28,7 @@ Apnea-ECG-EEG-Comparison/
 │
 ├── scripts/                        # Executable pipeline scripts
 │   ├── extract_features.py         # Generate feature tables from signals
-│   ├── train_lightgbm.py             # Train ECG and EEG models
-│   ├── evaluate_models.py          # Evaluate and compare model results
+│   ├── train_lightgbm.py           # Train ECG and EEG models
 │   └── info_edf.py                 # Extract from an EDF file the channels and frequency.
 │
 ├── outputs/                        # Generated outputs, not tracked by Git
@@ -109,7 +108,7 @@ ecg_mean, ecg_std, ecg_rms, ecg_energy,
 r_peak_count, heart_rate_mean, rr_mean, rr_std, rr_median, rmssd
 ```
 
-EEG features are simple time-domain and spectral band-power values computed per window. The PSD is recomputed for each 30-second window, instead of using global PSD values from the pickle files:
+EEG features are simple time-domain and FFT band-power values computed per window, instead of using global PSD values from the pickle files:
 
 ```text
 eeg_mean, eeg_std, eeg_rms, eeg_energy,
@@ -131,6 +130,6 @@ Latest prototype results:
 | Model | Accuracy | Precision | Recall | F1 | ROC AUC |
 | --- | ---: | ---: | ---: | ---: | ---: |
 | ECG LightGBM | 0.735 | 0.128 | 0.250 | 0.170 | 0.583 |
-| EEG LightGBM | 0.819 | 0.118 | 0.105 | 0.111 | 0.607 |
+| EEG LightGBM | 0.803 | 0.062 | 0.058 | 0.060 | 0.584 |
 
 Generated files are saved under `outputs/features/`, `outputs/models/`, `outputs/figures/`, and `outputs/metrics_*.json`.

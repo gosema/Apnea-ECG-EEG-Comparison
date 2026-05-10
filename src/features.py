@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.signal import find_peaks, welch
+from scipy.signal import find_peaks
 
 from src import config
 from src.annotations import label_windows
@@ -80,11 +80,21 @@ def extract_ecg_features(window, fs):
     return features
 
 
-def _band_power(freqs, psd, low, high):
-    mask = (freqs >= low) & (freqs < high)
-    if not np.any(mask):
-        return np.nan
-    return float(np.trapezoid(psd[mask], freqs[mask]))
+def compute_bandpower_fft(signal_window, fs, low_freq, high_freq):
+    window = np.asarray(signal_window, dtype=float).reshape(-1)
+    window = window[np.isfinite(window)]
+    if window.size < 2 or fs <= 0:
+        return 0.0
+
+    window = window - np.mean(window)
+    freqs = np.fft.rfftfreq(window.size, d=1.0 / fs)
+    fft_values = np.fft.rfft(window)
+    power = np.abs(fft_values) ** 2
+
+    band = (freqs >= low_freq) & (freqs < high_freq)
+    if not np.any(band):
+        return 0.0
+    return float(np.sum(power[band]))
 
 
 def extract_eeg_features(window, fs):
@@ -94,10 +104,10 @@ def extract_eeg_features(window, fs):
     clean = clean[np.isfinite(clean)]
     if clean.size < 2 or np.nanstd(clean) == 0:
         powers = {
-            "delta_power": np.nan,
-            "theta_power": np.nan,
-            "alpha_power": np.nan,
-            "beta_power": np.nan,
+            "delta_power": 0.0,
+            "theta_power": 0.0,
+            "alpha_power": 0.0,
+            "beta_power": 0.0,
             "delta_relative": np.nan,
             "theta_relative": np.nan,
             "alpha_relative": np.nan,
@@ -106,15 +116,12 @@ def extract_eeg_features(window, fs):
         features.update(powers)
         return features
 
-    nperseg = min(len(clean), int(round(fs * 4)))
-    # PSD is computed per 30-second window so spectral features align with labels.
-    freqs, psd = welch(clean, fs=fs, nperseg=nperseg)
-
-    delta = _band_power(freqs, psd, 0.5, 4.0)
-    theta = _band_power(freqs, psd, 4.0, 8.0)
-    alpha = _band_power(freqs, psd, 8.0, 13.0)
-    beta = _band_power(freqs, psd, 13.0, 30.0)
-    total = _band_power(freqs, psd, 0.5, 30.0)
+    # FFT is computed per 30-second window so spectral features align with labels.
+    delta = compute_bandpower_fft(clean, fs, 0.5, 4.0)
+    theta = compute_bandpower_fft(clean, fs, 4.0, 8.0)
+    alpha = compute_bandpower_fft(clean, fs, 8.0, 13.0)
+    beta = compute_bandpower_fft(clean, fs, 13.0, 30.0)
+    total = delta + theta + alpha + beta
 
     if total and np.isfinite(total) and total > 0:
         rel = {
