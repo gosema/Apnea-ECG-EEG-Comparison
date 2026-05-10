@@ -1,6 +1,130 @@
-import mne
+import pickle
+import re
+from pathlib import Path
+
 import numpy as np
 import xml.etree.ElementTree as ET
+
+from src import config
+
+try:
+    import mne
+except ImportError:
+    mne = None
+
+
+SIGNAL_KEYS = (
+    "signal",
+    "data",
+    "ecg",
+    "eeg",
+    "values",
+    "ecg_signal",
+    "eeg_signal",
+)
+
+FS_KEYS = ("fs", "sfreq", "sampling_frequency", "sample_rate")
+
+
+def extract_patient_id(file_path):
+    """Extract ids such as mesa-sleep-0028 from processed filenames."""
+    match = re.search(r"(mesa-sleep-\d+)", Path(file_path).name)
+    if not match:
+        raise ValueError(f"Could not extract patient_id from {file_path}")
+    return match.group(1)
+
+
+def _pick_signal_from_dict(data, modality=None):
+    keys = list(SIGNAL_KEYS)
+    if modality:
+        keys.insert(0, f"{modality.lower()}_signal")
+        keys.insert(1, modality.lower())
+
+    for key in keys:
+        if key in data:
+            return data[key]
+    return None
+
+
+def _pick_fs_from_dict(data):
+    for key in FS_KEYS:
+        if key in data and data[key] is not None:
+            try:
+                return float(data[key])
+            except (TypeError, ValueError):
+                return None
+    return None
+
+
+def to_1d_array(signal):
+    arr = np.asarray(signal, dtype=float)
+    arr = np.squeeze(arr)
+    if arr.ndim == 0:
+        raise ValueError("signal is scalar")
+    if arr.ndim > 1:
+        arr = arr.reshape(-1)
+    if arr.size == 0:
+        raise ValueError("signal is empty")
+    return arr
+
+
+def load_processed_pickle(file_path, modality=None, default_fs=None):
+    """
+    Load a processed ECG/EEG pickle and return patient_id, signal and fs.
+
+    The processed files in student projects often differ a little in shape and
+    keys, so this loader accepts either a raw array-like object or a dictionary
+    with common signal and sampling-frequency keys.
+    """
+    file_path = Path(file_path)
+    patient_id = extract_patient_id(file_path)
+    if default_fs is None:
+        default_fs = (
+            config.DEFAULT_ECG_FS
+            if str(modality).lower() == "ecg"
+            else config.DEFAULT_EEG_FS
+        )
+
+    with file_path.open("rb") as f:
+        obj = pickle.load(f)
+
+    fs = None
+    if isinstance(obj, dict):
+        signal = _pick_signal_from_dict(obj, modality=modality)
+        fs = _pick_fs_from_dict(obj)
+    else:
+        signal = obj
+
+    if signal is None:
+        raise ValueError("could not find a signal array in pickle")
+
+    signal = to_1d_array(signal)
+    if fs is None:
+        fs = float(default_fs)
+
+    return {
+        "patient_id": patient_id,
+        "signal": signal,
+        "fs": fs,
+        "path": file_path,
+    }
+
+
+def load_processed_directory(directory, modality, default_fs=None):
+    records = []
+    for file_path in sorted(Path(directory).glob("*.pkl")):
+        try:
+            records.append(
+                load_processed_pickle(
+                    file_path,
+                    modality=modality,
+                    default_fs=default_fs,
+                )
+            )
+        except Exception as exc:
+            print(f"Warning: skipping {file_path}: {exc}")
+    return records
+
 
 class DataLoader:
     # A target sampling rate is defined since the data belongs to different hospitals that may record at different speeds.
@@ -10,6 +134,9 @@ class DataLoader:
     # The raw signal of a sample is taken and cleaning steps are applied
     # TODO: LOOP FOR ALL PATIENT SAMPLES
     def load_and_standardize(self, edf_path, eeg_channels, ecg_channels):
+        if mne is None:
+            raise ImportError("mne is required for EDF loading")
+
         print(f"Processing: {edf_path}...")
         
         # Channels to keep helps reduce memory usage
@@ -53,6 +180,9 @@ class DataLoader:
 
     # Reads the XML file in NSRR format from polysomnography/annotations-events-nsrr and overlays it on the clean temporal waveform
     def load_annotations(self, raw, xml_path):
+        if mne is None:
+            raise ImportError("mne is required for MNE annotations")
+
         try:
             # Parse the XML file
             tree = ET.parse(xml_path)

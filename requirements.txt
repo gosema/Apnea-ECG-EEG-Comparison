@@ -3,6 +3,8 @@ pandas
 scipy
 matplotlib
 scikit-learn
+lightgbm
+joblib
 jupyter
 ipykernel
 mne

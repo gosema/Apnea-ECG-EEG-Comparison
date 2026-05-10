@@ -28,7 +28,7 @@ Apnea-ECG-EEG-Comparison/
 │
 ├── scripts/                        # Executable pipeline scripts
 │   ├── extract_features.py         # Generate feature tables from signals
-│   ├── train_models.py             # Train ECG and EEG models
+│   ├── train_lightgbm.py             # Train ECG and EEG models
 │   ├── evaluate_models.py          # Evaluate and compare model results
 │   └── info_edf.py                 # Extract from an EDF file the channels and frequency.
 │
@@ -97,3 +97,40 @@ data/
     ├── overlap/
     └── polysomnography/
 ```
+
+## Current feature and model prototype
+
+The current prototype works at 30-second window level. Apnea labels are created from the annotation event intervals: a window is positive if it overlaps a Hypopnea, Obstructive Apnea, Central Apnea, or Mixed Apnea event by at least 1 second.
+
+ECG features are simple time-domain and R-peak based values computed per window:
+
+```text
+ecg_mean, ecg_std, ecg_rms, ecg_energy,
+r_peak_count, heart_rate_mean, rr_mean, rr_std, rr_median, rmssd
+```
+
+EEG features are simple time-domain and spectral band-power values computed per window. The PSD is recomputed for each 30-second window, instead of using global PSD values from the pickle files:
+
+```text
+eeg_mean, eeg_std, eeg_rms, eeg_energy,
+delta_power, theta_power, alpha_power, beta_power,
+delta_relative, theta_relative, alpha_relative, beta_relative
+```
+
+Two separate LightGBM models are trained: one for ECG features and one for EEG features. The split is done at patient level, using 80% of patients for training and 20% for testing, so windows from the same patient are not shared across train and test sets.
+
+Run the prototype from the repository root:
+
+```bash
+python scripts/extract_features.py
+python scripts/train_lightgbm.py
+```
+
+Latest prototype results:
+
+| Model | Accuracy | Precision | Recall | F1 | ROC AUC |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| ECG LightGBM | 0.735 | 0.128 | 0.250 | 0.170 | 0.583 |
+| EEG LightGBM | 0.819 | 0.118 | 0.105 | 0.111 | 0.607 |
+
+Generated files are saved under `outputs/features/`, `outputs/models/`, `outputs/figures/`, and `outputs/metrics_*.json`.
